@@ -18,9 +18,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/api/health', (_req, res) => {
-  return res.status(200).json(new ApiResponse(200, { ok: true }, 'API is healthy'));
-});
+
 app.use('/api/auth', authRouter);
 app.use('/api/feed', feedRouter);
 

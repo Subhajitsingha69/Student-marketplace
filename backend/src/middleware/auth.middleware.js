@@ -18,5 +18,5 @@ export async function verifyJWT(req, res, next) {
     next();
   } catch {
     next(new ApiError(401, 'Unauthorized'));
-  }
+  } 
 }

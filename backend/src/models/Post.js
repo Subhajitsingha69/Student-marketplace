@@ -12,3 +12,4 @@ postSchema.index({ authorId: 1, createdAt: -1, _id: -1 }); //Indexing in descend
                                                             // MongoDB to retrieve posts from newest to oldest directly from the index tree.
                                                             // id decreasing is for tiebreaker
 export default mongoose.model('Post', postSchema);
+ 

@@ -9,12 +9,6 @@ function publicUser(user) {
   return { id: user._id, name: user.name, username: user.username };
 }
 
-function requireAuthConfiguration() {
-  if (!process.env.JWT_SECRET && !process.env.ACCESS_TOKEN_SECRET) {
-    throw new ApiError(503, 'Authentication is not configured');
-  }
-}
-
 function loginData(user) {
   return {
     user: publicUser(user),
@@ -26,16 +20,16 @@ function loginData(user) {
 
 export async function register(req, res, next) {
   try {
-    requireAuthConfiguration();
     const result = signupPostBodySchema.safeParse(req.body);
     if (!result.success) throw new ApiError(400, result.error.issues[0].message);
+
     const { name, username, password } = result.data;
 
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await User.create({ name, username, passwordHash });
-    const responseData = { ...loginData(user), user: publicUser(user) };
 
-    return res.status(201).json(new ApiResponse(201, responseData, 'User registered successfully'));
+
+    return res.status(201).json(new ApiResponse(201, user, 'User registered successfully'));
   } catch (error) {
     if (error.code === 11000) return next(new ApiError(409, 'Username is already taken', { cause: error }));
     return next(error);
@@ -44,9 +38,9 @@ export async function register(req, res, next) {
 
 export async function login(req, res, next) {
   try {
-    requireAuthConfiguration();
     const result = loginPostBodySchema.safeParse(req.body);
     if (!result.success) throw new ApiError(400, result.error.issues[0].message);
+
     const { username, password } = result.data;
 
     const user = await User.findOne({ username }).select('+passwordHash');

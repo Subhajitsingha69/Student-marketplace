@@ -13,6 +13,7 @@ export default function App() {
   const [cursor, setCursor] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [token, setToken] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -43,6 +44,7 @@ export default function App() {
     event.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMessage('');
     try {
       const response = await fetch(`${API}/api/auth/${authMode}`, {
         method: 'POST',
@@ -51,6 +53,16 @@ export default function App() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || data.error || 'Could not authenticate');
+
+      if (authMode === 'register') {
+        setAuthMode('login');
+        setName('');
+        setPassword('');
+        setSuccessMessage('Account created. Please sign in.');
+        setLoading(false);
+        return;
+      }
+
       setToken(data.data.accessToken);
       await loadFeed(data.data.accessToken);
     } catch (err) {
@@ -67,8 +79,9 @@ export default function App() {
         <label>Username<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required /></label>
         <label>Password<input type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} minLength={authMode === 'register' ? 8 : undefined} value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
         {error && <div className="notice">{error}</div>}
+        {successMessage && <div className="notice" role="status">{successMessage}</div>}
         <button className="more" type="submit" disabled={loading}>{loading ? 'Please wait…' : authMode === 'login' ? 'Sign in' : 'Create account'}</button>
-        <button className="auth-switch" type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setError(''); }}>
+        <button className="auth-switch" type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setError(''); setSuccessMessage(''); }}>
           {authMode === 'login' ? 'Need an account? Register' : 'Already registered? Sign in'}
         </button>
       </form>

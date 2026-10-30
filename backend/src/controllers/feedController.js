@@ -1,17 +1,14 @@
 import Post from '../models/Post.js';
 import { ApiError } from '../utils/api-error.js';
 import { ApiResponse } from '../utils/api-response.js';
+import { getCachedJson, setCachedJson } from '../utils/redis.js';
 import { feedQuerySchema } from '../validator/request.validator.js';
 
 const CACHE_SECONDS = 30;
+
 function rank(post) {
-  const ageDays = Math.max(
-    0,
-    (Date.now() - new Date(post.createdAt).getTime()) / 86_400_000
-  );
-
+  const ageDays = Math.max(0,(Date.now() - new Date(post.createdAt).getTime()) / 86_400_000);
   const halfLife = 180; // days
-
   const decay = Math.pow(0.5, ageDays / halfLife);
 
   return post.likes * 2 * decay;
@@ -20,16 +17,18 @@ function rank(post) {
 export async function getFeed(req, res, next) {
   try {
     const userId = req.user._id;
-    const queryResult = feedQuerySchema.safeParse(req.query);
+    const queryResult = feedQuerySchema.safeParse(req.query);  //for valid cursor value ,like cursor =10,means send next request from 11
     if (!queryResult.success) throw new ApiError(400, queryResult.error.issues[0].message);
+
     const { limit, cursor: encodedCursor } = queryResult.data;
     const cursor = encodedCursor ? Buffer.from(encodedCursor, 'base64').toString() : null;
-    const cacheKey = `feed:${userId}:${limit}:${cursor || 'first'}`;
-    const cache = req.app.locals.redis;
-
-    if (cache?.isReady) {
-      const cached = await cache.get(cacheKey);
-      if (cached) return res.json(JSON.parse(cached));
+    
+    const cacheKey = `feed:${userId}:${cursor || 'first'}`;
+    const cached = await getCachedJson(cacheKey);
+    if (cached) {
+      return res.status(200).json(
+        new ApiResponse(200, cached, 'Feed fetched successfully')
+      );
     }
 
     const authors = [userId, ...req.user.following];
@@ -55,10 +54,10 @@ export async function getFeed(req, res, next) {
         ? Buffer.from(String(page.at(-1)._id)).toString('base64')
         : null,
     };
-    const response = new ApiResponse(200, result, 'Feed fetched successfully');
-
-    if (cache?.isReady) await cache.setEx(cacheKey, CACHE_SECONDS, JSON.stringify(response));
-    return res.status(200).json(response);
+    await setCachedJson(cacheKey, result, CACHE_SECONDS);
+    return res.status(200).json(
+      new ApiResponse(200, result, 'Feed fetched successfully')
+    );
   } catch (error) {
     return next(error);
   }
